@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+JEKYLL_ROOT="/var/www/your-jekyll-blog-env" # Replace Me.
+
+no_pull="Already up-to-date."
+CONFIGS="../_config.yml,../_config_preview.yml"   # Additional config, overides base_paths
+BLOG_OUT="$JEKYLL_ROOT/blog-preview"
+BLOG_PATH="$JEKYLL_ROOT/jekyll-repo-preview" # This repo ist checkout to "preview" branch
+
+function update_blog {
+  cd $BLOG_PATH
+  git reset --hard HEAD # a build can create junk files, you want get rid of
+  pull_result=`GIT_SSH='$JEKYLL_ROOT/ssh.sh' git pull 2> /dev/null`
+
+  if [[ $pull_result != $no_pull ]]
+  then
+    echo -e "Building new version of of the Jekyll blog.\r\n\r"
+    rm -rf $BLOG_PATH/.bundle 2>&1 > /dev/null  # remove, users shouldn't push bundle configs
+    BUNDLE_GEMFILE="$JEKYLL_ROOT/Gemfile bundle install --path /var/www/jekyllblog/jekyll_gems 2>&1 >  /dev/null"
+    BUNDLE_GEMFILE="$JEKYLL_ROOT/Gemfile JEKYLL_ENV=production bundle exec jekyll build -s $BLOG_PATH -d $BLOG_OUT --config $CONFIGS 2>&1 > /dev/null"
+  else
+    echo -e "No changes to the blog were made.\r\n\r"
+  fi
+}
+
+echo -e "Content-type: text/html\r\n\r"
+update_blog # execute for staging env
+
+CONFIGS="../_config.yml"        # default
+BLOG_OUT="JEKYLL_ROOT/blog"
+BLOG_PATH="JEKYLL_ROOT/jekyll-repo"
+
+update_blog # execute for production env
+
